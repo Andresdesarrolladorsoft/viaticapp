@@ -26,3 +26,7 @@ if ($result->num_rows > 0) {
     echo "Inicio de sesión exitoso";
 } else {
     echo "Usuario o Contraseña Errados";
+}
+
+$stmt->close();
+$mysql->close();
