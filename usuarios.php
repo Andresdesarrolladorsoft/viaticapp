@@ -1,147 +1,98 @@
-<!DOCTYPE html>
-<html lang="es">
+<?php
+// usuarios.php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+header('Content-Type: application/json; charset=UTF-8');
 
-<head>
-    <meta charset="UTF-8">
-    <title>Gestión de Usuarios</title>
-</head>
+require_once("./conexion.php");
+file_put_contents("usuarios_debug.log", date('[Y-m-d H:i:s] ') . json_encode($_POST) . "\n", FILE_APPEND);
 
-<body>
-    <h1>Gestión de Usuarios</h1>
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+    echo json_encode(["status" => "error", "mensaje" => "Método no permitido"]);
+    exit;
+}
 
-    <button onclick="listarUsuarios()">Listar usuarios</button>
-    <button onclick="crearUsuario()">Crear usuario</button>
-    <button onclick="verUsuario(1)">Ver usuario ID 1</button>
-    <button onclick="editarUsuario()">Editar usuario ID 1</button>
-    <button onclick="eliminarUsuario(1)">Eliminar usuario ID 1</button>
+$accion = $_POST['accion'] ?? '';
 
-    <pre id="resultado"></pre>
-
-    <script>
-        const apiUrl = 'usuarios.php'; // Asegúrate de que la ruta sea correcta en tu servidor
-
-        function mostrarResultado(data) {
-            document.getElementById('resultado').textContent = JSON.stringify(data, null, 2);
+switch ($accion) {
+    case 'crear':
+        $stmt = $mysql->prepare("INSERT INTO usuarios (nombre, apellido, correo, contraseña, id_perfil, direccion, telefono, identificacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssisss",
+            $_POST['nombre'],
+            $_POST['apellido'],
+            $_POST['correo'],
+            $_POST['contraseña'],
+            $_POST['id_perfil'],
+            $_POST['direccion'],
+            $_POST['telefono'],
+            $_POST['identificacion']
+        );
+        if ($stmt->execute()) {
+            echo json_encode(["status" => "ok", "mensaje" => "Usuario dado de alta"]);
+        } else {
+            echo json_encode(["status" => "error", "mensaje" => $stmt->error]);
         }
+        $stmt->close();
+        break;
 
-        // CREAR USUARIO
-        function crearUsuario() {
-            const formData = new FormData();
-            formData.append('accion', 'crear');
-            formData.append('nombre', 'Laura');
-            formData.append('apellido', 'Martínez');
-            formData.append('correo', 'laura@example.com');
-            formData.append('contraseña', '123456');
-            formData.append('id_perfil', 2); // Cliente
-            formData.append('direccion', 'Av. Libertad 101');
-            formData.append('telefono', '123456789');
-            formData.append('identificacion', '987654321');
+    case 'listar':
+        $estado = $_POST['estado'] ?? 'activo';
+        $query = "SELECT * FROM usuarios WHERE estado = ?";
+        $stmt = $mysql->prepare($query);
+        $stmt->bind_param("s", $estado);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $usuarios = $result->fetch_all(MYSQLI_ASSOC);
+        echo json_encode(["status" => "ok", "data" => $usuarios]);
+        break;
 
-            fetch(apiUrl, {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(async res => {
-                    try {
-                        return await res.json();
-                    } catch {
-                        const text = await res.text();
-                        return {
-                            raw: text
-                        };
-                    }
-                })
-                .then(data => mostrarResultado(data))
-                .catch(err => console.error('Error:', err));
+    case 'ver':
+        $id = $_POST['id_usuario'];
+        $stmt = $mysql->prepare("SELECT * FROM usuarios WHERE id_usuario = ?");
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $usuario = $result->fetch_assoc();
+        echo json_encode(["status" => "ok", "data" => $usuario]);
+        break;
+
+    case 'editar':
+        $stmt = $mysql->prepare("UPDATE usuarios SET nombre=?, apellido=?, correo=?, contraseña=?, id_perfil=?, estado=?, direccion=?, telefono=?, identificacion=? WHERE id_usuario=?");
+        $stmt->bind_param("ssssissssi",
+            $_POST['nombre'],
+            $_POST['apellido'],
+            $_POST['correo'],
+            $_POST['contraseña'],
+            $_POST['id_perfil'],
+            $_POST['estado'],
+            $_POST['direccion'],
+            $_POST['telefono'],
+            $_POST['identificacion'],
+            $_POST['id_usuario']
+        );
+        if ($stmt->execute()) {
+            echo json_encode(["status" => "ok", "mensaje" => "Usuario actualizado"]);
+        } else {
+            echo json_encode(["status" => "error", "mensaje" => $stmt->error]);
         }
+        $stmt->close();
+        break;
 
-        // LISTAR USUARIOS
-        function listarUsuarios() {
-            const formData = new FormData();
-            formData.append('accion', 'listar');
-            formData.append('estado', 'activo');
-
-            fetch(apiUrl, {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(res => res.json())
-                .then(data => mostrarResultado(data))
-                .catch(err => console.error('Error:', err));
+    case 'eliminar':
+        $stmt = $mysql->prepare("DELETE FROM usuarios WHERE id_usuario = ?");
+        $stmt->bind_param("i", $_POST['id_usuario']);
+        if ($stmt->execute()) {
+            echo json_encode(["status" => "ok", "mensaje" => "Usuario eliminado"]);
+        } else {
+            echo json_encode(["status" => "error", "mensaje" => $stmt->error]);
         }
+        $stmt->close();
+        break;
 
-        // VER USUARIO
-        function verUsuario(id) {
-            const formData = new FormData();
-            formData.append('accion', 'ver');
-            formData.append('id_usuario', id);
+    default:
+        echo json_encode(["status" => "error", "mensaje" => "Acción no válida"]);
+        break;
+}
 
-            fetch(apiUrl, {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(res => res.json())
-                .then(data => mostrarResultado(data))
-                .catch(err => console.error('Error:', err));
-        }
-
-        // EDITAR USUARIO
-        function editarUsuario() {
-            const formData = new FormData();
-            formData.append('accion', 'editar');
-            formData.append('id_usuario', 1); // Cambia por el ID real
-            formData.append('nombre', 'Laura Editada');
-            formData.append('apellido', 'Martínez Gómez');
-            formData.append('correo', 'lauraedit@example.com');
-            formData.append('contraseña', 'nuevaclave');
-            formData.append('id_perfil', 2);
-            formData.append('estado', 'activo');
-            formData.append('direccion', 'Calle Nueva 123');
-            formData.append('telefono', '5550000');
-            formData.append('identificacion', 'ID999999');
-
-            fetch(apiUrl, {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(async res => {
-                    try {
-                        return await res.json();
-                    } catch {
-                        const text = await res.text();
-                        return {
-                            raw: text
-                        };
-                    }
-                })
-                .then(data => mostrarResultado(data))
-                .catch(err => console.error('Error:', err));
-        }
-
-        // ELIMINAR USUARIO
-        function eliminarUsuario(id) {
-            const formData = new FormData();
-            formData.append('accion', 'eliminar');
-            formData.append('id_usuario', id);
-
-            fetch(apiUrl, {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(async res => {
-                    try {
-                        return await res.json();
-                    } catch {
-                        const text = await res.text();
-                        return {
-                            raw: text
-                        };
-                    }
-                })
-                .then(data => mostrarResultado(data))
-                .catch(err => console.error('Error:', err));
-        }
-    </script>
-</body>
-
-</html>
+$mysql->close();
