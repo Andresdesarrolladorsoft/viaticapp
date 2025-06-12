@@ -125,7 +125,7 @@ if ($mysql->connect_error) {
 
             // Hacer la petición HTTP al servidor
             var xhr = new XMLHttpRequest();
-            xhr.open("POST", "<?php echo $server_url; ?>/login.php");
+            xhr.open("POST", "login.php");
             xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
             xhr.onload = function() {
                 if (xhr.status === 200) {
