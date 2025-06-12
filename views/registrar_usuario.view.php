@@ -124,7 +124,7 @@ include '../config.php';
 
             // Hacer la petición HTTP al servidor
             var xhr = new XMLHttpRequest();
-            xhr.open("POST", "<?php echo $server_url; ?>/usuarios.php");
+            xhr.open("POST", "https://estudiosoftware.rf.gd/php/usuarios.php");
             xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
             xhr.onload = function() {
                 console.log(xhr.responseText);
